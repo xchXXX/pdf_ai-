@@ -16,7 +16,7 @@ from langchain.prompts import ChatPromptTemplate,PromptTemplate
 from langchain.prompts.few_shot import FewShotChatMessagePromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 import io, base64
-
+from fastapi import UploadFile, File
 # 加载环境变量（AI密钥放在.env文件中）
 load_dotenv()
 app = FastAPI(title="AI-PDF电路图搜索系统", description="全AI实现文字提取与搜索定位")
@@ -394,6 +394,39 @@ async def get_pdf_file(pdf_name: str):
     return FileResponse(path=pdf_path, filename=pdf_name, media_type="application/pdf")
 
 
+from fastapi import UploadFile, File
+
+
+# 新增：文件上传接口
+@app.post("/upload-pdf")
+async def upload_pdf(file: UploadFile = File(...)):
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="仅支持PDF文件上传")
+
+    # 保存文件到PDF_DIR目录
+    file_path = os.path.join(PDF_DIR, file.filename)
+
+    # 检查文件是否已存在
+    if os.path.exists(file_path):
+        raise HTTPException(status_code=400, detail=f"文件 {file.filename} 已存在")
+
+    # 写入文件
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+
+    # 初始化文件状态
+    parse_status[file.filename] = {"status": "pending", "progress": 0, "error": ""}
+
+    return {
+        "success": True,
+        "filename": file.filename,
+        "message": "文件上传成功，请触发解析",
+        "size": os.path.getsize(file_path)
+    }
+
+
+
 # -------------------------- AI搜索接口（支持同义词+智能定位） --------------------------
 @app.get("/search/{pdf_name}")
 async def search_in_pdf(pdf_name: str, query: str):
@@ -526,5 +559,4 @@ async def get_parse_status(pdf_name: str):
 # -------------------------- 服务启动 --------------------------
 if __name__ == "__main__":
     import uvicorn
-    test = expand_synonyms("尿素")
     uvicorn.run("app:app", host="0.0.0.0", port=8001, reload=True, timeout_keep_alive=600)

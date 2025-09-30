@@ -2,90 +2,483 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>AI-PDF电路图列表</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-PDF电路图搜索系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; }
-        .pdf-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; }
-        .status { padding: 4px 8px; border-radius: 4px; font-size: 14px; }
-        .status-pending { background: #fff3cd; color: #856404; }
-        .status-processing { background: #d1ecf1; color: #0c5460; }
-        .status-completed { background: #d4edda; color: #155724; }
-        .status-failed { background: #f8d7da; color: #721c24; }
-        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 14px; }
-        .btn-parse { background: #28a745; color: white; }
-        .btn-view { background: #007bff; color: white; margin-left: 10px; }
-        .progress-bar { height: 8px; width: 150px; background: #e9ecef; border-radius: 4px; overflow: hidden; }
-        .progress-fill { height: 100%; background: #28a745; }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+        .new-file-indicator {
+            animation: highlight 2s infinite alternate;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+        @keyframes highlight {
+            from { box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.3); }
+            to { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.5); }
+        }
     </style>
 </head>
-<body>
-    <h1>AI-PDF电路图文档列表</h1>
-    <div id="pdf-list"></div>
+<body class="bg-gray-50 min-h-screen">
+    <!-- 顶部导航栏 -->
+    <nav class="bg-blue-600 text-white shadow-md">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-search-plus text-2xl"></i>
+                <h1 class="text-xl font-bold">AI-PDF电路图搜索系统</h1>
+            </div>
+            <div class="text-sm opacity-90">
+                智能解析 · 精准定位 · 高效检索
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 py-8">
+        <!-- 上传区域 -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8 transition-all duration-300 hover:shadow-xl fade-in">
+            <div class="flex items-center mb-6">
+                <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                    <i class="fa fa-cloud-upload text-blue-600"></i>
+                </div>
+                <h2 class="text-2xl font-semibold text-gray-800">上传电路图PDF</h2>
+            </div>
+
+            <!-- 拖放上传区域 -->
+            <div id="uploadArea" class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center transition-all duration-300 hover:border-blue-400 hover:bg-blue-50 cursor-pointer">
+                <input type="file" id="fileInput" accept=".pdf" class="hidden">
+
+                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-50 flex items-center justify-center">
+                    <i class="fa fa-file-pdf-o text-3xl text-blue-600"></i>
+                </div>
+
+                <h3 class="text-lg font-medium text-gray-700 mb-2">拖放PDF文件到此处</h3>
+                <p class="text-gray-500 mb-6">或点击选择文件上传（支持所有PDF格式文件）</p> <!-- 移除大小限制提示 -->
+
+                <button id="browseBtn" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-6 rounded-md transition duration-300 flex items-center mx-auto">
+                    <i class="fa fa-folder-open mr-2"></i>选择PDF文件
+                </button>
+
+                <!-- 上传进度条 -->
+                <div id="progressContainer" class="mt-6 hidden">
+                    <div class="flex justify-between text-sm text-gray-600 mb-1">
+                        <span id="progressFileName">正在上传...</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div id="progressBar" class="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 上传状态提示 -->
+            <div id="uploadStatus" class="mt-6 hidden p-4 rounded-md slide-up"></div>
+        </div>
+
+        <!-- PDF文件列表 -->
+        <div class="bg-white rounded-xl shadow-lg p-6 fade-in" style="animation-delay: 0.1s">
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mr-3">
+                        <i class="fa fa-list text-gray-600"></i>
+                    </div>
+                    <h2 class="text-2xl font-semibold text-gray-800">已上传文件</h2>
+                </div>
+                <button id="refreshBtn" class="text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fa fa-refresh mr-1"></i>刷新列表
+                </button>
+            </div>
+
+            <!-- 空状态 -->
+            <div id="emptyState" class="text-center py-12 text-gray-400 hidden">
+                <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                    <i class="fa fa-file-text-o text-4xl"></i>
+                </div>
+                <p>暂无上传的PDF文件</p>
+                <p class="text-sm mt-2">上传后可在此处查看和管理</p>
+            </div>
+
+            <!-- 加载状态 -->
+            <div id="loadingState" class="text-center py-12 text-gray-400 hidden">
+                <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                    <i class="fa fa-spinner fa-spin text-4xl"></i>
+                </div>
+                <p>正在加载文件列表...</p>
+            </div>
+
+            <!-- 文件列表 -->
+            <div id="pdfList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- 文件项将通过JS动态生成 -->
+            </div>
+        </div>
+    </div>
 
     <script>
-        window.onload = () => {
+        // 记录最近上传的文件名，用于高亮显示
+        let lastUploadedFileName = null;
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            initUploadEvents();
             loadPdfList();
-            setInterval(loadPdfList, 3000); // 每3秒刷新状态
-        };
+            document.getElementById('refreshBtn').addEventListener('click', () => {
+                loadPdfList(true); // 强制刷新
+            });
+        });
 
-        async function loadPdfList() {
-            try {
-                const res = await fetch("/pdfs");
-                const data = await res.json();
-                const listEl = document.getElementById("pdf-list");
-                listEl.innerHTML = "";
+        // 初始化上传相关事件
+        function initUploadEvents() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            const browseBtn = document.getElementById('browseBtn');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const progressPercent = document.getElementById('progressPercent');
+            const progressFileName = document.getElementById('progressFileName');
+            const uploadStatus = document.getElementById('uploadStatus');
 
-                if (data.count === 0) {
-                    listEl.innerHTML = "<p>本地pdfs文件夹中未发现PDF文件，请放入电路图PDF后刷新</p>";
-                    return;
+            // 点击浏览按钮触发文件选择
+            browseBtn.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            // 拖放事件
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('border-blue-500', 'bg-blue-50');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('border-blue-500', 'bg-blue-50');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('border-blue-500', 'bg-blue-50');
+
+                if (e.dataTransfer.files.length) {
+                    const file = e.dataTransfer.files[0];
+                    if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+                        handleFileUpload(file);
+                    } else {
+                        showUploadStatus('请上传PDF格式的文件', 'error');
+                    }
                 }
+            });
 
-                data.pdfs.forEach(pdf => {
-                    const card = document.createElement("div");
-                    card.className = "pdf-card";
-                    card.innerHTML = `
-                        <div>
-                            <h3>${pdf.name}</h3>
-                            <p>大小：${(pdf.size / 1024 / 1024).toFixed(2)}MB | AI解析状态：<span class="status status-${pdf.current_status}">${formatStatus(pdf.current_status)}</span></p>
-                        </div>
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${getProgress(pdf.current_status)}%"></div>
+            // 文件选择变化时处理
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files.length) {
+                    handleFileUpload(fileInput.files[0]);
+                }
+            });
+
+            // 处理文件上传（移除大小限制）
+            function handleFileUpload(file) {
+                // 移除大小限制检查
+
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // 显示进度条
+                progressContainer.classList.remove('hidden');
+                progressFileName.textContent = file.name;
+                progressBar.style.width = '0%';
+                progressPercent.textContent = '0%';
+                hideUploadStatus();
+
+                // 创建上传请求
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', '/upload-pdf');
+
+                // 监听上传进度
+                xhr.upload.addEventListener('progress', (e) => {
+                    if (e.lengthComputable) {
+                        const percent = Math.round((e.loaded / e.total) * 100);
+                        progressBar.style.width = percent + '%';
+                        progressPercent.textContent = percent + '%';
+
+                        // 大文件上传显示预估时间
+                        const speed = (e.loaded / 1024 / 1024) / ((e.timeStamp || performance.now()) / 1000);
+                        if (speed > 0 && percent < 100) {
+                            const remainingMB = (e.total - e.loaded) / 1024 / 1024;
+                            const remainingSec = Math.ceil(remainingMB / speed);
+                            progressFileName.textContent = `${file.name} (剩余约 ${formatTime(remainingSec)})`;
+                        }
+                    }
+                });
+
+                // 上传完成处理
+                xhr.addEventListener('load', () => {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        lastUploadedFileName = response.filename; // 记录新上传的文件
+                        showUploadStatus(`文件 "${response.filename}" 上传成功，正在准备解析...`, 'success');
+                        // 刷新文件列表（确保最新）
+                        setTimeout(() => loadPdfList(), 1000);
+                    } else {
+                        const error = JSON.parse(xhr.responseText);
+                        showUploadStatus(error.detail || '上传失败，请重试', 'error');
+                    }
+                    // 隐藏进度条
+                    setTimeout(() => {
+                        progressContainer.classList.add('hidden');
+                        fileInput.value = '';
+                    }, 3000);
+                });
+
+                // 上传失败处理
+                xhr.addEventListener('error', () => {
+                    showUploadStatus('网络错误，上传失败', 'error');
+                    setTimeout(() => {
+                        progressContainer.classList.add('hidden');
+                    }, 3000);
+                });
+
+                xhr.send(formData);
+            }
+
+            // 显示上传状态提示
+            function showUploadStatus(message, type) {
+                uploadStatus.textContent = message;
+                uploadStatus.classList.remove('hidden', 'bg-green-50', 'bg-red-50', 'text-green-700', 'text-red-700', 'border', 'border-green-200', 'border-red-200');
+
+                if (type === 'success') {
+                    uploadStatus.classList.add('bg-green-50', 'text-green-700', 'border', 'border-green-200');
+                } else {
+                    uploadStatus.classList.add('bg-red-50', 'text-red-700', 'border', 'border-red-200');
+                }
+            }
+
+            // 隐藏上传状态提示
+            function hideUploadStatus() {
+                uploadStatus.classList.add('hidden');
+            }
+
+            // 格式化时间（秒转时分秒）
+            function formatTime(seconds) {
+                if (seconds < 60) return `${seconds}秒`;
+                const minutes = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                if (minutes < 60) return `${minutes}分${secs}秒`;
+                const hours = Math.floor(minutes / 60);
+                const mins = minutes % 60;
+                return `${hours}时${mins}分${secs}秒`;
+            }
+        }
+
+        // 加载PDF文件列表（添加强制刷新和加载状态）
+        function loadPdfList(forceRefresh = false) {
+            const pdfList = document.getElementById('pdfList');
+            const emptyState = document.getElementById('emptyState');
+            const loadingState = document.getElementById('loadingState');
+
+            // 显示加载状态
+            pdfList.innerHTML = '';
+            emptyState.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+
+            // 添加随机参数避免缓存，确保列表最新
+            const url = forceRefresh ? '/pdfs?refresh=' + Math.random() : '/pdfs';
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error('获取文件列表失败');
+                    return response.json();
+                })
+                .then(data => {
+                    loadingState.classList.add('hidden');
+
+                    // 显示空状态或文件列表
+                    if (data.count === 0) {
+                        emptyState.classList.remove('hidden');
+                        return;
+                    }
+
+                    // 按上传时间排序（最新的在前面）
+                    data.pdfs.sort((a, b) => new Date(b.upload_time) - new Date(a.upload_time));
+
+                    // 生成文件项
+                    data.pdfs.forEach((pdf, index) => {
+                        const size = formatFileSize(pdf.size);
+                        let statusClass, statusText, statusIcon;
+
+                        // 根据状态设置不同样式
+                        switch(pdf.current_status) {
+                            case 'pending':
+                                statusClass = 'bg-yellow-100 text-yellow-800';
+                                statusText = '待解析';
+                                statusIcon = 'fa-clock-o';
+                                break;
+                            case 'processing':
+                                statusClass = 'bg-blue-100 text-blue-800 pulse';
+                                statusText = '解析中';
+                                statusIcon = 'fa-spinner fa-spin';
+                                break;
+                            case 'completed':
+                                statusClass = 'bg-green-100 text-green-800';
+                                statusText = '已完成';
+                                statusIcon = 'fa-check';
+                                break;
+                            case 'failed':
+                                statusClass = 'bg-red-100 text-red-800';
+                                statusText = '解析失败';
+                                statusIcon = 'fa-exclamation-circle';
+                                break;
+                        }
+
+                        // 创建文件项元素
+                        const pdfItem = document.createElement('div');
+                        // 给新上传的文件添加高亮标识
+                        const isNewFile = pdf.name === lastUploadedFileName;
+                        pdfItem.className = `border border-gray-200 rounded-lg p-4 transition-all duration-300 hover:shadow-md slide-up ${isNewFile ? 'new-file-indicator' : ''}`;
+                        pdfItem.style.animationDelay = `${index * 0.05}s`;
+
+                        pdfItem.innerHTML = `
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="flex items-center">
+                                    <i class="fa fa-file-pdf-o text-red-500 mr-2"></i>
+                                    <span class="font-medium text-gray-800 truncate max-w-[200px]" title="${pdf.name}">${pdf.name}</span>
+                                </div>
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusClass}">
+                                    <i class="fa ${statusIcon} mr-1"></i>${statusText}
+                                </span>
                             </div>
-                            <button class="btn btn-parse" onclick="triggerAIParse('${pdf.name}')">${getParseBtnText(pdf.current_status)}</button>
-                            <a class="btn btn-view" href="/viewer/${pdf.name}" ${pdf.current_status !== "completed" ? "style='pointer-events: none; opacity: 0.6;'" : ""}>AI详情页</a>
+
+                            <div class="text-sm text-gray-500 mb-4">
+                                <div class="flex justify-between">
+                                    <span>大小: ${size}</span>
+                                    ${pdf.current_status === 'processing' ?
+                                        `<span>进度: ${pdf.progress || 0}%</span>` :
+                                        `<span>上传时间: ${new Date(pdf.upload_time).toLocaleString()}</span>`
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="flex space-x-2">
+                                <a href="/viewer/${pdf.name}" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 px-3 rounded transition duration-300 text-center">
+                                    <i class="fa fa-search mr-1"></i>搜索
+                                </a>
+                                <button data-pdf="${pdf.name}" class="parse-btn flex-1 ${pdf.current_status === 'processing' ? 'bg-gray-300 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'} text-sm py-2 px-3 rounded transition duration-300 text-center">
+                                    <i class="fa fa-cogs mr-1"></i>${pdf.current_status === 'completed' ? '重新解析' : '开始解析'}
+                                </button>
+                            </div>
+                        `;
+
+                        pdfList.appendChild(pdfItem);
+                    });
+
+                    // 绑定解析按钮事件
+                    document.querySelectorAll('.parse-btn').forEach(btn => {
+                        if (!btn.classList.contains('cursor-not-allowed')) {
+                            btn.addEventListener('click', function() {
+                                const pdfName = this.getAttribute('data-pdf');
+                                triggerParse(pdfName, this);
+                            });
+                        }
+                    });
+
+                    // 滚动到新上传的文件
+                    if (lastUploadedFileName) {
+                        const newFileElement = document.querySelector(`[data-pdf="${lastUploadedFileName}"]`);
+                        if (newFileElement) {
+                            newFileElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                        // 5秒后移除高亮标识
+                        setTimeout(() => {
+                            lastUploadedFileName = null;
+                        }, 5000);
+                    }
+                })
+                .catch(error => {
+                    console.error('加载文件列表错误:', error);
+                    loadingState.classList.add('hidden');
+                    pdfList.innerHTML = `
+                        <div class="col-span-full text-center py-12 text-red-500">
+                            <i class="fa fa-exclamation-circle text-4xl mb-4"></i>
+                            <p>加载文件列表失败</p>
+                            <button onclick="loadPdfList(true)" class="mt-2 text-blue-600 hover:underline">点击重试</button>
                         </div>
                     `;
-                    listEl.appendChild(card);
                 });
-            } catch (e) {
-                console.error("加载PDF列表失败：", e);
-            }
         }
 
-        function formatStatus(status) {
-            const map = { pending: "待AI解析", processing: "AI解析中", completed: "AI解析完成", failed: "解析失败" };
-            return map[status] || status;
+        // 触发PDF解析
+        function triggerParse(pdfName, button) {
+            // 禁用按钮并显示加载状态
+            button.disabled = true;
+            button.innerHTML = '<i class="fa fa-spinner fa-spin mr-1"></i>解析中...';
+            button.classList.remove('bg-gray-100', 'hover:bg-gray-200');
+            button.classList.add('bg-blue-100', 'text-blue-700');
+
+            fetch(`/parse-trigger/${pdfName}`, { method: 'POST' })
+                .then(response => {
+                    if (!response.ok) throw new Error('触发解析失败');
+                    return response.json();
+                })
+                .then(data => {
+                    // 定期检查解析状态（确保列表实时更新）
+                    const interval = setInterval(() => {
+                        fetch(`/parse-status/${pdfName}`)
+                            .then(res => res.json())
+                            .then(status => {
+                                // 更新按钮显示进度
+                                if (status.status === 'processing') {
+                                    button.innerHTML = `<i class="fa fa-spinner fa-spin mr-1"></i>${status.progress}%`;
+                                    // 同步更新列表中的进度
+                                    document.querySelector(`[data-pdf="${pdfName}"]`).closest('.slide-up')
+                                        .querySelector('.text-sm .flex span:last-child')
+                                        .textContent = `进度: ${status.progress}%`;
+                                }
+                                // 解析完成或失败时刷新列表
+                                else if (status.status === 'completed' || status.status === 'failed') {
+                                    clearInterval(interval);
+                                    loadPdfList();
+                                }
+                            })
+                            .catch(() => clearInterval(interval));
+                    }, 1000);
+                })
+                .catch(error => {
+                    console.error('解析触发错误:', error);
+                    button.innerHTML = '<i class="fa fa-cogs mr-1"></i>解析失败';
+                    button.classList.remove('bg-blue-100', 'text-blue-700');
+                    button.classList.add('bg-red-100', 'text-red-700');
+                    // 允许重试
+                    setTimeout(() => {
+                        button.disabled = false;
+                        button.innerHTML = '<i class="fa fa-cogs mr-1"></i>重新解析';
+                        button.classList.remove('bg-red-100', 'text-red-700');
+                        button.classList.add('bg-gray-100', 'hover:bg-gray-200', 'text-gray-700');
+                    }, 2000);
+                });
         }
 
-        function getProgress(status) {
-            return status === "processing" ? 50 : (status === "completed" ? 100 : 0);
-        }
-
-        function getParseBtnText(status) {
-            const map = { pending: "启动AI解析", processing: "解析中...", completed: "重新AI解析", failed: "重试AI解析" };
-            return map[status] || "解析";
-        }
-
-        async function triggerAIParse(pdfName) {
-            try {
-                const res = await fetch(`/parse-trigger/${pdfName}`, { method: "POST" });
-                const data = await res.json();
-                alert(data.message);
-                loadPdfList();
-            } catch (e) {
-                alert("触发AI解析失败：" + e.message);
-            }
+        // 格式化文件大小（支持大文件显示）
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']; // 支持到TB级大文件
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
         }
     </script>
 </body>
