@@ -1,0 +1,711 @@
+<html lang="zh-CN"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-PDF电路图详情</title>
+    <style>
+        /* 保持原有样式不变 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #fafbfc;
+            color: #333;
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 12px 20px;
+            background-color: #fff;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        }
+
+        .pdf-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+            max-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .func-btns {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .page-btn, .rotate-btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            color: #fff;
+        }
+        .page-btn {
+            background-color: #2563eb;
+        }
+        .page-btn:hover {
+            background-color: #1d4ed8;
+        }
+        .rotate-btn {
+            background-color: #10b981;
+        }
+        .rotate-btn:hover {
+            background-color: #059669;
+        }
+
+        .search-box {
+            flex: 1;
+            max-width: 600px;
+            display: flex;
+            gap: 8px;
+            min-width: 280px;
+        }
+        .search-input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 15px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .search-input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+        }
+        .search-btn, .next-btn {
+            padding: 10px 18px;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .search-btn {
+            background-color: #2563eb;
+            color: #fff;
+        }
+        .search-btn:hover {
+            background-color: #1d4ed8;
+        }
+        .next-btn {
+            background-color: #f59e0b;
+            color: #fff;
+        }
+        .next-btn:disabled {
+            background-color: #fcd34d;
+            cursor: not-allowed;
+        }
+
+        .content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .pdf-viewer {
+            flex: 1;
+            overflow: auto;
+            padding: 16px;
+            background-color: #f3f4f6;
+            position: relative;
+        }
+        #pdf-container {
+            position: relative;
+            margin: 0 auto;
+            transition: transform 0.3s ease; /* 旋转过渡动画 */
+        }
+
+        .highlight-nav {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 10;
+        }
+        .nav-btn {
+            padding: 8px 12px;
+            background-color: #ef4444;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .nav-btn:hover {
+            background-color: #dc2626;
+        }
+
+        .page-info {
+            text-align: center;
+            margin-top: 8px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        .result-panel {
+            width: 360px;
+            background-color: #fff;
+            border-left: 1px solid #e5e7eb;
+            padding: 16px;
+            overflow-y: auto;
+            box-shadow: -1px 0 3px rgba(0,0,0,0.03);
+        }
+        .panel-title {
+            font-size: 17px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #1f2937;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+
+        .result-item {
+            padding: 12px;
+            border: 1px solid #f3f4f6;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .result-item:hover {
+            border-color: #2563eb;
+            background-color: #f8fafc;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        }
+        .result-score {
+            color: #ef4444;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .result-tags {
+            margin: 6px 0;
+            display: flex;
+            gap: 6px;
+        }
+        .result-tag {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .tag-title {
+            background-color: #ef4444;
+            color: #fff;
+        }
+        .tag-table {
+            background-color: #f59e0b;
+            color: #fff;
+        }
+        .match-texts {
+            margin: 8px 0;
+            padding-left: 8px;
+            border-left: 2px solid #2563eb;
+        }
+        .match-text {
+            font-size: 14px;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+        .result-snippet {
+            font-size: 13px;
+            color: #6b7280;
+            line-height: 1.4;
+        }
+
+        .qa-area {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px dashed #f3f4f6;
+        }
+        .question-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 15px;
+            margin: 8px 0;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .question-input:focus {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+        }
+        .answer {
+            margin-top: 10px;
+            padding: 12px;
+            background-color: #f8fafc;
+            border-radius: 6px;
+            font-size: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            color: #374151;
+        }
+
+        .page-highlight-nav {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            justify-content: center;
+        }
+        .page-highlight-btn {
+            padding: 6px 12px;
+            background-color: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .page-highlight-btn:hover {
+            background-color: #1d4ed8;
+        }
+
+        #highlight-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+</head>
+<body>
+    <div class="header">
+        <button class="page-btn" onclick="goBack()">← 返回</button>
+        <h2 class="pdf-title" id="pdf-title" title=""></h2>
+        <div class="func-btns">
+            <button class="page-btn" onclick="changePage(-1)">上一页</button>
+            <button class="page-btn" onclick="changePage(1)">下一页</button>
+            <button class="rotate-btn" onclick="rotatePDF(-90)">逆时针</button>
+            <button class="rotate-btn" onclick="rotatePDF(90)">顺时针</button>
+        </div>
+        <div class="search-box">
+            <input type="text" class="search-input" id="query-input" placeholder="输入关键词（如：ECU、油门踏板）">
+            <button class="search-btn" onclick="aiSearch()">搜索</button>
+            <button class="next-btn" id="next-btn" onclick="goToNextResult()" disabled="">下一处</button>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="pdf-viewer" id="pdf-viewer">
+            <div class="page-highlight-nav">
+                <button class="page-highlight-btn" onclick="goToPageHighlight(-1)">上一个高亮</button>
+                <button class="page-highlight-btn" onclick="goToPageHighlight(1)">下一个高亮</button>
+            </div>
+            <div id="pdf-container"></div>
+            <div class="highlight-nav" id="highlight-nav"></div>
+        </div>
+        <div class="result-panel">
+            <h3 class="panel-title">AI搜索结果</h3>
+            <div id="search-results"></div>
+            <div class="qa-area">
+                <h3 class="panel-title">AI电路图问答</h3>
+                <input type="text" class="question-input" id="question-input" placeholder="输入问题（如：ECU连接哪些针脚）">
+                <button class="search-btn" onclick="askAIQ()">提交问题</button>
+                <div id="ai-answer" class="answer" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let pdfDoc = null;
+        let currentPage = 1;
+        let currentRotate = 0; // 旋转角度
+        let searchResults = [];
+        let currentResultIdx = -1;
+        let currentPageHighlights = [];
+        let currentPageHighlightIdx = -1;
+        const pdfName = window.location.pathname.split("/")[2];
+        const pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+        const initialScale = 1.5;
+
+        window.onload = async () => {
+            const fullPdfName = decodeURIComponent(pdfName);
+            const shortName = fullPdfName.length > 10 ? fullPdfName.slice(0, 10) + '...' : fullPdfName;
+            document.getElementById("pdf-title").textContent = `AI解析：${shortName}`;
+            document.getElementById("pdf-title").setAttribute("title", fullPdfName);
+            await loadPDF(`/pdf/${pdfName}`);
+        };
+
+        function goBack() {
+            window.history.back();
+        }
+
+        async function loadPDF(pdfPath) {
+            try {
+                const loadingTask = pdfjsLib.getDocument({
+                    url: pdfPath,
+                    cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/cmaps/',
+                    cMapPacked: true
+                });
+                pdfDoc = await loadingTask.promise;
+                await renderPage(currentPage);
+            } catch (e) {
+                console.error("加载PDF失败：", e);
+                alert("PDF加载失败，请重试");
+            }
+        }
+
+        // 旋转功能：旋转后重新计算高亮位置
+        function rotatePDF(angle) {
+            if (!pdfDoc) return;
+            currentRotate = (currentRotate + angle + 360) % 360;
+            // 重新渲染页面并应用旋转，同时重绘高亮
+            renderPage(currentPage).then(() => {
+                applyRotationTransform();
+                // 若当前有高亮结果，重新计算并定位
+                if (currentPageHighlights.length > 0 && currentPageHighlightIdx >= 0) {
+                    centerHighlight(currentPageHighlights[currentPageHighlightIdx]);
+                }
+            });
+        }
+
+        // 应用旋转变换到容器
+        function applyRotationTransform() {
+            const container = document.getElementById("pdf-container");
+            const canvas = document.getElementById("pdf-canvas");
+            if (!container || !canvas) return;
+
+            // 清除之前的变换
+            container.style.transform = "none";
+
+            // 根据当前旋转角度应用CSS变换
+            switch (currentRotate) {
+                case 90:
+                    container.style.transform = `rotate(90deg) translateY(-100%)`;
+                    container.style.transformOrigin = "top left";
+                    container.style.margin = `${canvas.height}px 0 0 0`;
+                    break;
+                case 180:
+                    container.style.transform = `rotate(180deg) translate(-100%, -100%)`;
+                    container.style.transformOrigin = "top left";
+                    break;
+                case 270:
+                    container.style.transform = `rotate(270deg) translateX(-100%)`;
+                    container.style.transformOrigin = "top left";
+                    container.style.margin = `0 0 ${canvas.width}px 0`;
+                    break;
+                default:
+                    container.style.margin = "0 auto";
+                    break;
+            }
+        }
+
+        async function changePage(delta) {
+            const newPage = currentPage + delta;
+            if (newPage >= 1 && newPage <= pdfDoc.numPages) {
+                currentPage = newPage;
+                currentPageHighlightIdx = -1;
+                const hasResult = searchResults.some(res => res.page_num === currentPage);
+                if (!hasResult) currentResultIdx = -1;
+                await renderPage(currentPage);
+                applyRotationTransform(); // 翻页后保持旋转状态
+            }
+        }
+
+        function goToPageHighlight(delta) {
+            if (currentPageHighlights.length === 0) return;
+            currentPageHighlightIdx = (currentPageHighlightIdx + delta + currentPageHighlights.length) % currentPageHighlights.length;
+            centerHighlight(currentPageHighlights[currentPageHighlightIdx]);
+        }
+
+        function goToSearchResult(idx) {
+            currentResultIdx = idx;
+            currentPageHighlightIdx = 0;
+            const result = searchResults[idx];
+            currentPage = result.page_num;
+            renderPage(currentPage).then(() => {
+                applyRotationTransform();
+                if (currentPageHighlights.length > 0) {
+                    centerHighlight(currentPageHighlights[0]);
+                }
+            });
+        }
+
+        // 精准居中高亮
+        function centerHighlight(highlightPos) {
+            const viewerEl = document.getElementById("pdf-viewer");
+            const containerEl = document.getElementById("pdf-container");
+            const viewerRect = viewerEl.getBoundingClientRect();
+            const containerRect = containerEl.getBoundingClientRect();
+            const scale = initialScale;
+
+            let centerX, centerY;
+
+            switch (currentRotate) {
+                case 90:
+                    centerX = (highlightPos.y + highlightPos.height / 2) * scale;
+                    centerY = (containerRect.width / scale - highlightPos.x - highlightPos.width / 2) * scale;
+                    break;
+                case 180:
+                    centerX = (containerRect.width / scale - highlightPos.x - highlightPos.width / 2) * scale;
+                    centerY = (containerRect.height / scale - highlightPos.y - highlightPos.height / 2) * scale;
+                    break;
+                case 270:
+                    centerX = (containerRect.height / scale - highlightPos.y - highlightPos.height / 2) * scale;
+                    centerY = (highlightPos.x + highlightPos.width / 2) * scale;
+                    break;
+                default:
+                    centerX = (highlightPos.x + highlightPos.width / 2) * scale;
+                    centerY = (highlightPos.y + highlightPos.height / 2) * scale;
+            }
+
+            const viewerCenterY = viewerRect.height / 2;
+            const targetScrollTop = centerY - viewerCenterY + containerEl.offsetTop;
+
+            viewerEl.scrollTo({
+                top: targetScrollTop,
+                behavior: "smooth"
+            });
+        }
+
+        async function renderPage(num) {
+            const page = await pdfDoc.getPage(num);
+            const viewport = page.getViewport({
+                scale: initialScale,
+                rotate: 0 // 由CSS处理视觉旋转
+            });
+
+            const containerEl = document.getElementById("pdf-container");
+            containerEl.innerHTML = '';
+            containerEl.style.width = `${viewport.width}px`;
+            containerEl.style.height = `${viewport.height}px`;
+
+            const canvas = document.createElement("canvas");
+            canvas.id = "pdf-canvas";
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+            containerEl.appendChild(canvas);
+
+            const highlightLayer = document.createElement("canvas");
+            highlightLayer.id = "highlight-layer";
+            highlightLayer.height = viewport.height;
+            highlightLayer.width = viewport.width;
+            containerEl.appendChild(highlightLayer);
+
+            const ctx = canvas.getContext("2d");
+            const renderContext = { canvasContext: ctx, viewport: viewport };
+            await page.render(renderContext).promise;
+
+            const pageInfoEl = document.createElement("div");
+            pageInfoEl.className = "page-info";
+            pageInfoEl.textContent = `第 ${num} 页 / 共 ${pdfDoc.numPages} 页 | 旋转角度：${currentRotate}°`;
+            containerEl.appendChild(pageInfoEl);
+
+            currentPageHighlights = [];
+            const highlightCtx = highlightLayer.getContext("2d");
+            if (currentResultIdx >= 0 && searchResults.length > 0) {
+                const result = searchResults[currentResultIdx];
+                if (result.page_num === num) {
+                    const pageDimensions = result.dimensions;
+                    // 旋转后重新计算所有高亮位置并绘制
+                    result.position.forEach(pos => {
+                        const rotatedPos = getRotatedPosition(pos, pageDimensions);
+                        currentPageHighlights.push(rotatedPos);
+                        drawHighlight(rotatedPos, highlightCtx, currentRotate, initialScale);
+                    });
+                    generateHighlightNav();
+                }
+            }
+        }
+
+        // 计算旋转后的坐标位置
+        function getRotatedPosition(pos, dimensions) {
+            const scaleX = dimensions.image_width / dimensions.pdf_page_width;
+            const scaleY = dimensions.image_height / dimensions.pdf_page_height;
+
+            return {
+                x: pos.x / scaleX,
+                y: pos.y / scaleY,
+                width: pos.width / scaleX,
+                height: pos.height / scaleY,
+                matchText: pos.match_text
+            };
+        }
+
+        // 绘制橙色高亮，根据旋转角度调整
+        function drawHighlight(rotatedPos, ctx, rotate, scale) {
+            ctx.save();
+            ctx.globalAlpha = 0.6; // 保持一定透明度，不遮挡文字
+            ctx.fillStyle = "#FF7F00"; // 橙色高亮
+
+            // 根据旋转角度调整绘制坐标
+            switch (rotate) {
+                case 90:
+                    ctx.translate(rotatedPos.y * scale, 0);
+                    ctx.rotate(Math.PI / 2);
+                    ctx.fillRect(0, -rotatedPos.x * scale,
+                                rotatedPos.height * scale,
+                                rotatedPos.width * scale);
+                    break;
+                case 180:
+                    ctx.translate(rotatedPos.x * scale + rotatedPos.width * scale, rotatedPos.y * scale + rotatedPos.height * scale);
+                    ctx.rotate(Math.PI);
+                    ctx.fillRect(0, 0,
+                                rotatedPos.width * scale,
+                                rotatedPos.height * scale);
+                    break;
+                case 270:
+                    ctx.translate(0, rotatedPos.y * scale + rotatedPos.height * scale);
+                    ctx.rotate(-Math.PI / 2);
+                    ctx.fillRect(-rotatedPos.x * scale, 0,
+                                rotatedPos.height * scale,
+                                rotatedPos.width * scale);
+                    break;
+                default:
+                    ctx.fillRect(rotatedPos.x * scale,
+                                rotatedPos.y * scale,
+                                rotatedPos.width * scale,
+                                rotatedPos.height * scale);
+            }
+
+            ctx.restore();
+        }
+
+        // 生成高亮导航按钮
+        function generateHighlightNav() {
+            const navEl = document.getElementById("highlight-nav");
+            navEl.innerHTML = '';
+
+            const viewerEl = document.getElementById("pdf-viewer");
+            const containerEl = document.getElementById("pdf-container");
+            const viewerTop = viewerEl.scrollTop;
+            const viewerBottom = viewerTop + viewerEl.clientHeight;
+            const containerTop = containerEl.offsetTop;
+
+            currentPageHighlights.forEach((pos, idx) => {
+                const scale = initialScale;
+                let highlightTop, highlightBottom;
+
+                // 根据旋转角度计算高亮位置
+                switch (currentRotate) {
+                    case 90:
+                        highlightTop = containerTop + pos.y * scale;
+                        highlightBottom = highlightTop + pos.width * scale;
+                        break;
+                    case 270:
+                        highlightTop = containerTop + pos.x * scale;
+                        highlightBottom = highlightTop + pos.height * scale;
+                        break;
+                    default:
+                        highlightTop = containerTop + pos.y * scale;
+                        highlightBottom = highlightTop + pos.height * scale;
+                }
+
+                // 只对视图外的高亮显示导航按钮
+                if (highlightBottom < viewerTop || highlightTop > viewerBottom) {
+                    const btn = document.createElement("button");
+                    btn.className = "nav-btn";
+                    btn.textContent = `定位到第${idx + 1}个`;
+                    btn.onclick = () => {
+                        currentPageHighlightIdx = idx;
+                        centerHighlight(pos);
+                    };
+                    navEl.appendChild(btn);
+                }
+            });
+        }
+
+        async function aiSearch() {
+            const query = document.getElementById("query-input").value.trim();
+            if (!query) {
+                alert("请输入搜索关键词");
+                return;
+            }
+
+            try {
+                const res = await fetch(`/search/${pdfName}?query=${encodeURIComponent(query)}`);
+                const data = await res.json();
+                searchResults = data.results;
+                currentResultIdx = -1;
+                currentPageHighlightIdx = -1;
+                document.getElementById("next-btn").disabled = searchResults.length === 0;
+                renderSearchResults(data);
+
+                if (searchResults.length > 0) {
+                    goToSearchResult(0);
+                }
+            } catch (e) {
+                console.error("搜索失败：", e);
+                alert("搜索失败，请重试");
+            }
+        }
+
+        function renderSearchResults(data) {
+            const resultsEl = document.getElementById("search-results");
+            if (data.total === 0) {
+                resultsEl.innerHTML = '<p style="color:#6b7280; text-align:center; padding:20px 0;">未找到匹配结果，请更换关键词</p>';
+                return;
+            }
+
+            resultsEl.innerHTML = `<p style="color:#6b7280; margin-bottom:10px;">共找到 ${data.total} 个结果页</p>`;
+            data.results.forEach((result, idx) => {
+                const item = document.createElement("div");
+                item.className = "result-item";
+                const matchTextsHtml = result.position.map(pos =>
+                    `<div class="match-text">• ${pos.match_text}</div>`
+                ).join('');
+
+                item.innerHTML = `
+                    <p>第 ${result.page_num} 页 | 相关度：<span class="result-score">${result.score}</span></p>
+                    <div class="result-tags">
+                        ${result.is_title ? '<span class="result-tag tag-title">标题</span>' : ''}
+                        ${result.is_table ? '<span class="result-tag tag-table">表格</span>' : ''}
+                    </div>
+                    <div class="match-texts">${matchTextsHtml}</div>
+                    <p class="result-snippet">${result.snippet}</p>
+                `;
+                item.onclick = () => goToSearchResult(idx);
+                resultsEl.appendChild(item);
+            });
+        }
+
+        function goToNextResult() {
+            if (searchResults.length === 0) return;
+            currentResultIdx = (currentResultIdx + 1) % searchResults.length;
+            goToSearchResult(currentResultIdx);
+        }
+
+        async function askAIQ() {
+            const question = document.getElementById("question-input").value.trim();
+            if (!question) {
+                alert("请输入问答问题");
+                return;
+            }
+
+            const answerEl = document.getElementById("ai-answer");
+            answerEl.style.display = "block";
+            answerEl.textContent = "AI正在思考，请稍候...";
+
+            try {
+                const res = await fetch(`/qa/${pdfName}?question=${encodeURIComponent(question)}`);
+                const data = await res.json();
+                answerEl.textContent = data.answer;
+            } catch (e) {
+                answerEl.textContent = "AI问答失败：" + e.message;
+            }
+        }
+    </script>
+
+
+</body></html>

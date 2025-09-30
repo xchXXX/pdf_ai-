@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>AI-PDF电路图列表</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 20px auto; padding: 0 20px; }
+        .pdf-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; margin: 10px 0; display: flex; justify-content: space-between; align-items: center; }
+        .status { padding: 4px 8px; border-radius: 4px; font-size: 14px; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-processing { background: #d1ecf1; color: #0c5460; }
+        .status-completed { background: #d4edda; color: #155724; }
+        .status-failed { background: #f8d7da; color: #721c24; }
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; font-size: 14px; }
+        .btn-parse { background: #28a745; color: white; }
+        .btn-view { background: #007bff; color: white; margin-left: 10px; }
+        .progress-bar { height: 8px; width: 150px; background: #e9ecef; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #28a745; }
+    </style>
+</head>
+<body>
+    <h1>AI-PDF电路图文档列表</h1>
+    <div id="pdf-list"></div>
+
+    <script>
+        window.onload = () => {
+            loadPdfList();
+            setInterval(loadPdfList, 3000); // 每3秒刷新状态
+        };
+
+        async function loadPdfList() {
+            try {
+                const res = await fetch("/pdfs");
+                const data = await res.json();
+                const listEl = document.getElementById("pdf-list");
+                listEl.innerHTML = "";
+
+                if (data.count === 0) {
+                    listEl.innerHTML = "<p>本地pdfs文件夹中未发现PDF文件，请放入电路图PDF后刷新</p>";
+                    return;
+                }
+
+                data.pdfs.forEach(pdf => {
+                    const card = document.createElement("div");
+                    card.className = "pdf-card";
+                    card.innerHTML = `
+                        <div>
+                            <h3>${pdf.name}</h3>
+                            <p>大小：${(pdf.size / 1024 / 1024).toFixed(2)}MB | AI解析状态：<span class="status status-${pdf.current_status}">${formatStatus(pdf.current_status)}</span></p>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${getProgress(pdf.current_status)}%"></div>
+                            </div>
+                            <button class="btn btn-parse" onclick="triggerAIParse('${pdf.name}')">${getParseBtnText(pdf.current_status)}</button>
+                            <a class="btn btn-view" href="/viewer/${pdf.name}" ${pdf.current_status !== "completed" ? "style='pointer-events: none; opacity: 0.6;'" : ""}>AI详情页</a>
+                        </div>
+                    `;
+                    listEl.appendChild(card);
+                });
+            } catch (e) {
+                console.error("加载PDF列表失败：", e);
+            }
+        }
+
+        function formatStatus(status) {
+            const map = { pending: "待AI解析", processing: "AI解析中", completed: "AI解析完成", failed: "解析失败" };
+            return map[status] || status;
+        }
+
+        function getProgress(status) {
+            return status === "processing" ? 50 : (status === "completed" ? 100 : 0);
+        }
+
+        function getParseBtnText(status) {
+            const map = { pending: "启动AI解析", processing: "解析中...", completed: "重新AI解析", failed: "重试AI解析" };
+            return map[status] || "解析";
+        }
+
+        async function triggerAIParse(pdfName) {
+            try {
+                const res = await fetch(`/parse-trigger/${pdfName}`, { method: "POST" });
+                const data = await res.json();
+                alert(data.message);
+                loadPdfList();
+            } catch (e) {
+                alert("触发AI解析失败：" + e.message);
+            }
+        }
+    </script>
+</body>
+</html>
