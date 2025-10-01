@@ -1,0 +1,19 @@
+:: 1. 创建虚拟环境（文件夹名为venv）
+python -m venv venv
+
+:: 2. 激活虚拟环境（激活后命令行前缀会显示(venv)）
+venv\Scripts\activate
+
+3.导包：
+pip install -i https://pypi.tuna.tsinghua.edu.cn/simple/ --trusted-host pypi.tuna.tsinghua.edu.cn \
+fastapi \
+uvicorn \
+python-dotenv \
+pdfplumber \
+Pillow \
+pdf2image \
+requests \
+langchain \
+langchain-openai \
+langchain-core \
+openai
