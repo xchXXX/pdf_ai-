@@ -11,6 +11,29 @@ requests>=2.31.0
 langchain>=0.1.0
 langchain-openai>=0.0.8
 openai>=1.3.0！！！
+步骤：
+:: 1. 创建名为pdf_prj的虚拟环境
+python -m venv pdf_prj
+
+:: 2. 激活虚拟环境（激活后命令行前缀会显示(pdf_prj)）
+pdf_prj\Scripts\activate
+
+:: 3. 升级pip（可选，避免旧版本pip安装失败）
+python -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple/ --trusted-host pypi.tuna.tsinghua.edu.cn
+
+:: 4. 通过清华镜像源安装所有依赖包（一行命令完成）
+pip install -i https://pypi.tuna.tsinghua.edu.cn/simple/ --trusted-host pypi.tuna.tsinghua.edu.cn \
+fastapi \
+uvicorn \
+python-dotenv \
+pdfplumber \
+Pillow \
+pdf2image \
+requests \
+langchain \
+langchain-openai \
+langchain-core \
+openai
 1. 产品简介
 本系统是一款基于 AI 技术的 PDF 电路图智能处理工具，支持 PDF 电路图上传、自动解析、文字提取、智能搜索及问答功能，帮助用户快速定位电路图中的关键信息（如连接器编号、针脚号、元器件名称等），适用于汽车、电子等领域的电路图分析场景。
 2. 核心功能
