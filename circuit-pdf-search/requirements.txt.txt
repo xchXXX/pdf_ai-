@@ -1,10 +1,13 @@
-:: 1. 创建虚拟环境（文件夹名为venv）
-python -m venv venv
+:: 1. 创建名为pdf_prj的虚拟环境
+python -m venv pdf_prj
 
-:: 2. 激活虚拟环境（激活后命令行前缀会显示(venv)）
-venv\Scripts\activate
+:: 2. 激活虚拟环境（激活后命令行前缀会显示(pdf_prj)）
+pdf_prj\Scripts\activate
 
-3.导包：
+:: 3. 升级pip（可选，避免旧版本pip安装失败）
+python -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple/ --trusted-host pypi.tuna.tsinghua.edu.cn
+
+:: 4. 通过清华镜像源安装所有依赖包（一行命令完成）
 pip install -i https://pypi.tuna.tsinghua.edu.cn/simple/ --trusted-host pypi.tuna.tsinghua.edu.cn \
 fastapi \
 uvicorn \
