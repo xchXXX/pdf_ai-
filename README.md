@@ -27,18 +27,7 @@ pdf_prj\Scripts\activate
 python -m pip install --upgrade pip -i https://pypi.tuna.tsinghua.edu.cn/simple/ --trusted-host pypi.tuna.tsinghua.edu.cn
 
 :: 4. 通过清华镜像源安装所有依赖包（一行命令完成）
-pip install -i https://pypi.tuna.tsinghua.edu.cn/simple/ --trusted-host pypi.tuna.tsinghua.edu.cn \
-fastapi \
-uvicorn \
-python-dotenv \
-pdfplumber \
-Pillow \
-pdf2image \
-requests \
-langchain \
-langchain-openai \
-langchain-core \
-openai
+pip install -i https://pypi.tuna.tsinghua.edu.cn/simple/ --trusted-host pypi.tuna.tsinghua.edu.cn fastapi uvicorn python-dotenv pdfplumber Pillow pdf2image requests langchain langchain-openai langchain-core openai python-multipart
 
 :: 5. 启动app.py成功后，访问内网http://localhost:8001即可开始使用
 
